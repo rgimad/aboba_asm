@@ -44,12 +44,27 @@ void out_byte2(uint8_t a, uint8_t b) {
     out_byte(b);
 }
 
+void out_int(int a) {
+    out_byte(a & 0xFF);
+    out_byte((a >> 8) & 0xFF);
+    out_byte((a >> 16) & 0xFF);
+    out_byte((a >> 24) & 0xFF);
+}
+
 void oprr(uint8_t op, int reg1, int reg2) {
     out_byte2(op, 0x0C0 + 8*reg2 + reg1);
 }
 
 void mov(int reg1, int reg2) {
     oprr(0x89, reg1, reg2);
+}
+
+void xchg(int reg1, int reg2) {
+    if (reg1 == REG_EAX || reg2 == REG_EAX) {
+        out_byte(0x90 + reg1 + reg2);
+    } else {
+        oprr(0x87, reg1, reg2);
+    }
 }
 
 void pop(int reg) {
@@ -64,8 +79,17 @@ void xor(int reg1, int reg2) {
     oprr(0x31, reg1, reg2);
 }
 
-void br() {
-    puts("\n");
+void movrc_raw(int reg, int n) {
+    out_byte(0xB8 + reg);
+    out_int(n);
+}
+
+void movrc(int reg, int n) {
+    if (n == 0) {
+        xor(reg, reg);
+    } else {
+        movrc_raw(reg, n);
+    }
 }
 
 void run_tests() {
@@ -74,7 +98,17 @@ void run_tests() {
     TEST(push(REG_EDI), outbuf, outbuf_len, ((uint8_t[]){ 0x57 }));
     TEST(pop(REG_EBX), outbuf, outbuf_len, ((uint8_t[]){ 0x5B }));
     TEST(xor(REG_EAX, REG_EDX), outbuf, outbuf_len, ((uint8_t[]){ 0x31, 0xD0 }));
+    TEST(xchg(REG_ECX, REG_EBX), outbuf, outbuf_len, ((uint8_t[]){ 0x87, 0xD9 }));
+    TEST(xchg(REG_EDX, REG_EAX), outbuf, outbuf_len, ((uint8_t[]){ 0x92 }));
+    TEST(movrc(REG_EDX, 1337), outbuf, outbuf_len, ((uint8_t[]){ 0xBA, 0x39, 0x05, 0x00, 0x00 }));
+    TEST(movrc(REG_EAX, 0xCAFEBABE), outbuf, outbuf_len, ((uint8_t[]){ 0xB8, 0xBE, 0xBA, 0xFE, 0xCA }));
+    TEST(movrc_raw(REG_EBX, 0), outbuf, outbuf_len, ((uint8_t[]){ 0xBB, 0x00, 0x00, 0x00, 0x00 }));
+    TEST(movrc(REG_EBX, 0), outbuf, outbuf_len, ((uint8_t[]){ 0x31, 0xDB }));
+
+
+    // TEST(   , outbuf, outbuf_len, ((uint8_t[]){   }));
     
+
     printf("All tests passed SUCCESSFULLY\n");
 }
 
