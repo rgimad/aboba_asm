@@ -26,12 +26,30 @@
     assert(memcmp(resbuf, expected, resbuf_len) == 0); \
 }
 
+#define TEST_VERBOSE(action, resbuf, resbuf_len, expected) {outbuf_clear(); \
+    action; \
+    print_bytes(resbuf, resbuf_len); \
+    assert(resbuf_len == sizeof(expected)); \
+    assert(memcmp(resbuf, expected, resbuf_len) == 0); \
+}
+
 uint8_t outbuf[1024];
 size_t outbuf_len = 0;
 
 void outbuf_clear() {
     memset(outbuf, 0, outbuf_len);
     outbuf_len = 0;
+}
+
+void print_bytes(const uint8_t *buf, size_t len) {
+    printf("{ ");
+    for (size_t i = 0; i < len; i++) {
+        printf("0x%02X", buf[i]);
+        if (i < len - 1) {
+            printf(", ");
+        }
+    }
+    printf(" }\n");
 }
 
 void out_byte(uint8_t a) {
@@ -49,6 +67,18 @@ void out_int(int a) {
     out_byte((a >> 8) & 0xFF);
     out_byte((a >> 16) & 0xFF);
     out_byte((a >> 24) & 0xFF);
+}
+
+bool is_byte(int n) {
+    return (-128 <= n) && (n <= 127);
+}
+
+void out_int_or_byte(int n) {
+    if (is_byte(n)) {
+        out_byte(n & 0xFF);
+    } else {
+        out_int(n);
+    }
 }
 
 void oprr(uint8_t op, int reg1, int reg2) {
@@ -92,6 +122,28 @@ void movrc(int reg, int n) {
     }
 }
 
+void pushc(int n) {
+    out_byte(0x68 + (is_byte(n) ? 2 : 0));
+    out_int_or_byte(n);
+}
+
+// test reg, reg
+void test(int reg) {
+    out_byte2(0x85, 0xC0 + reg*9);
+}
+
+void neg(int reg) {
+    out_byte2(0xF7, 0xD8 + reg);
+}
+
+void not(int reg) {
+    out_byte2(0xF7, 0xD0 + reg);
+}
+
+void add(int reg1, int reg2) {
+    oprr(0x1, reg1, reg2);
+}
+
 void run_tests() {
     TEST(mov(REG_EAX, REG_EBX), outbuf, outbuf_len, ((uint8_t[]){ 0x89, 0xD8 }));
     TEST(mov(REG_ESI, REG_ECX), outbuf, outbuf_len, ((uint8_t[]){ 0x89, 0xCE }));
@@ -104,6 +156,12 @@ void run_tests() {
     TEST(movrc(REG_EAX, 0xCAFEBABE), outbuf, outbuf_len, ((uint8_t[]){ 0xB8, 0xBE, 0xBA, 0xFE, 0xCA }));
     TEST(movrc_raw(REG_EBX, 0), outbuf, outbuf_len, ((uint8_t[]){ 0xBB, 0x00, 0x00, 0x00, 0x00 }));
     TEST(movrc(REG_EBX, 0), outbuf, outbuf_len, ((uint8_t[]){ 0x31, 0xDB }));
+    TEST(pushc(0xCAFEBABE), outbuf, outbuf_len, ((uint8_t[]){ 0x68, 0xBE, 0xBA, 0xFE, 0xCA }));
+    TEST(pushc(0x7F), outbuf, outbuf_len, ((uint8_t[]){ 0x6A, 0x7F }));
+    TEST(test(REG_EAX), outbuf, outbuf_len, ((uint8_t[]){ 0x85, 0xC0 }));
+    TEST(neg(REG_EBX), outbuf, outbuf_len, ((uint8_t[]){ 0xF7, 0xDB }));
+    TEST(not(REG_ESI), outbuf, outbuf_len, ((uint8_t[]){ 0xF7, 0xD6 }));
+    TEST(add(REG_EBX, REG_EDI), outbuf, outbuf_len, ((uint8_t[]){ 0x01, 0xFB }));
 
 
     // TEST(   , outbuf, outbuf_len, ((uint8_t[]){   }));
