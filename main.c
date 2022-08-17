@@ -85,10 +85,12 @@ void oprr(uint8_t op, int reg1, int reg2) {
     out_byte2(op, 0x0C0 + 8*reg2 + reg1);
 }
 
+// mov reg1, reg2
 void mov(int reg1, int reg2) {
     oprr(0x89, reg1, reg2);
 }
 
+// xchg reg1, reg2
 void xchg(int reg1, int reg2) {
     if (reg1 == REG_EAX || reg2 == REG_EAX) {
         out_byte(0x90 + reg1 + reg2);
@@ -97,23 +99,28 @@ void xchg(int reg1, int reg2) {
     }
 }
 
+// pop reg
 void pop(int reg) {
     out_byte(0x58 + reg);
 }
 
+// push reg
 void push(int reg) {
     out_byte(0x50 + reg);
 }
 
+// xor reg1, reg2
 void xor(int reg1, int reg2) {
     oprr(0x31, reg1, reg2);
 }
 
+// mov reg, n
 void movrc_raw(int reg, int n) {
     out_byte(0xB8 + reg);
     out_int(n);
 }
 
+// optimized mov reg, n
 void movrc(int reg, int n) {
     if (n == 0) {
         xor(reg, reg);
@@ -122,6 +129,7 @@ void movrc(int reg, int n) {
     }
 }
 
+// push n
 void pushc(int n) {
     out_byte(0x68 + (is_byte(n) ? 2 : 0));
     out_int_or_byte(n);
@@ -132,16 +140,64 @@ void test(int reg) {
     out_byte2(0x85, 0xC0 + reg*9);
 }
 
+// neg reg
 void neg(int reg) {
     out_byte2(0xF7, 0xD8 + reg);
 }
 
+// not reg
 void not(int reg) {
     out_byte2(0xF7, 0xD0 + reg);
 }
 
+// add reg1, reg2
 void add(int reg1, int reg2) {
     oprr(0x1, reg1, reg2);
+}
+
+void oprc(int op, int reg, int n) {
+    if (reg == REG_EAX && !is_byte(n)) {
+        switch (op) {
+            case 0xC0:
+                op = 0x05; // add
+                break;
+            case 0xE8:
+                op = 0x2D; // sub
+                break;
+            case 0xF8:
+                op = 0x3D; // cmp
+                break;
+            case 0xE0:
+                op = 0x25; // and
+                break;
+            case 0xC8:
+                op = 0x0D; // or
+                break;
+            case 0xF0:
+                op = 0x35; // xor
+                break;   
+        }
+        out_byte(op);
+        out_int(n);
+    } else {
+        out_byte2(0x81 + (is_byte(n) ? 2 : 0), op + reg % 8);
+        out_int_or_byte(n);
+    }
+}
+
+// and reg, n
+void andrc(int reg, int n) {
+    oprc(0xE0, reg, n);
+}
+
+// or reg, n
+void orrc(int reg, int n) {
+    oprc(0xC8, reg, n);
+}
+
+// xor reg, n
+void xorrc(int reg, int n) {
+    oprc(0xF0, reg, n);
 }
 
 void run_tests() {
@@ -162,6 +218,9 @@ void run_tests() {
     TEST(neg(REG_EBX), outbuf, outbuf_len, ((uint8_t[]){ 0xF7, 0xDB }));
     TEST(not(REG_ESI), outbuf, outbuf_len, ((uint8_t[]){ 0xF7, 0xD6 }));
     TEST(add(REG_EBX, REG_EDI), outbuf, outbuf_len, ((uint8_t[]){ 0x01, 0xFB }));
+    TEST(andrc(REG_EBX, 99), outbuf, outbuf_len, ((uint8_t[]){ 0x83, 0xE3, 0x63 }));
+    TEST(orrc(REG_EDI, 0), outbuf, outbuf_len, ((uint8_t[]){ 0x83, 0xCF, 0x00 }));
+    TEST(xorrc(REG_EDX, 1337), outbuf, outbuf_len, ((uint8_t[]){ 0x81, 0xF2, 0x39, 0x05, 0x00, 0x00 }));
 
 
     // TEST(   , outbuf, outbuf_len, ((uint8_t[]){   }));
