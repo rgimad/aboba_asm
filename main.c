@@ -200,6 +200,16 @@ void xorrc(int reg, int n) {
     oprc(0xF0, reg, n);
 }
 
+// add reg, n
+void addrc(int reg, int n) {
+    oprc(0xC0, reg, n);
+}
+
+// sub reg, n
+void subrc(int reg, int n) {
+    oprc(0xE8, reg, n);
+}
+
 void run_tests() {
     TEST(mov(REG_EAX, REG_EBX), outbuf, outbuf_len, ((uint8_t[]){ 0x89, 0xD8 }));
     TEST(mov(REG_ESI, REG_ECX), outbuf, outbuf_len, ((uint8_t[]){ 0x89, 0xCE }));
@@ -221,7 +231,8 @@ void run_tests() {
     TEST(andrc(REG_EBX, 99), outbuf, outbuf_len, ((uint8_t[]){ 0x83, 0xE3, 0x63 }));
     TEST(orrc(REG_EDI, 0), outbuf, outbuf_len, ((uint8_t[]){ 0x83, 0xCF, 0x00 }));
     TEST(xorrc(REG_EDX, 1337), outbuf, outbuf_len, ((uint8_t[]){ 0x81, 0xF2, 0x39, 0x05, 0x00, 0x00 }));
-
+    TEST(addrc(REG_EDI, 0xBEEFC01A), outbuf, outbuf_len, ((uint8_t[]){ 0x81, 0xC7, 0x1A, 0xC0, 0xEF, 0xBE }));
+    TEST(subrc(REG_EBX, 1337), outbuf, outbuf_len, ((uint8_t[]){ 0x81, 0xEB, 0x39, 0x05, 0x00, 0x00 }));
 
     // TEST(   , outbuf, outbuf_len, ((uint8_t[]){   }));
     
