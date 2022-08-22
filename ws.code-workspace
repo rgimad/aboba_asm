@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"stb_image.h": "c",
+			"stdlib.h": "c",
+			"string.h": "c",
+			"kheap.h": "c",
+			"stdint.h": "c",
+			"keyboard.h": "c"
+		}
+	}
+}
