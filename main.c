@@ -210,6 +210,29 @@ void subrc(int reg, int n) {
     oprc(0xE8, reg, n);
 }
 
+// cmp reg, n
+void cmprc_raw(int reg, int n) {
+    oprc(0xF8, reg, n);
+}
+
+// optimized cmp reg, n
+void cmprc(int reg, int n) {
+    if (n == 0) {
+        test(reg);
+    } else {
+        cmprc_raw(reg, n);
+    }
+}
+
+// cmp reg1, reg2
+void cmprr(int reg1, int reg2) {
+    oprr(0x39, reg1, reg2);
+}
+
+// ret
+void ret() {
+    out_byte(0xC3);
+}
 
 // ....
 
@@ -270,6 +293,10 @@ void run_tests() {
     TEST(xorrc(REG_EDX, 1337), outbuf, outbuf_len, ((uint8_t[]){ 0x81, 0xF2, 0x39, 0x05, 0x00, 0x00 }));
     TEST(addrc(REG_EDI, 0xBEEFC01A), outbuf, outbuf_len, ((uint8_t[]){ 0x81, 0xC7, 0x1A, 0xC0, 0xEF, 0xBE }));
     TEST(subrc(REG_EBX, 1337), outbuf, outbuf_len, ((uint8_t[]){ 0x81, 0xEB, 0x39, 0x05, 0x00, 0x00 }));
+    TEST(cmprc_raw(REG_EBX, 0), outbuf, outbuf_len, ((uint8_t[]){ 0x83, 0xFB, 0x00 }));
+    TEST(cmprc(REG_EBX, 0), outbuf, outbuf_len, ((uint8_t[]){ 0x85, 0xDB }));
+    TEST(cmprr(REG_EDX, REG_EBX), outbuf, outbuf_len, ((uint8_t[]){ 0x39, 0xDA }));
+    TEST(ret(), outbuf, outbuf_len, ((uint8_t[]){ 0xC3 }));
     TEST(movmr(REG_EBX, 4, REG_ECX), outbuf, outbuf_len, ((uint8_t[]){ 0x89, 0x4B, 0x04 }));
     TEST(movmr(REG_EAX, 3, REG_ESP), outbuf, outbuf_len, ((uint8_t[]){ 0x89, 0x60, 0x03 }));
     TEST(movrm(REG_EDX, 7, REG_EBP), outbuf, outbuf_len, ((uint8_t[]){ 0x8B, 0x55, 0x07 }));
