@@ -210,6 +210,43 @@ void subrc(int reg, int n) {
     oprc(0xE8, reg, n);
 }
 
+
+// ....
+
+void _movrm(int reg1, int reg2, int offs, int size, bool mr) {
+    if (size == 16) {
+        out_byte(0x66);
+    }
+    if (reg1 >= 8 || reg2 >= 8 || size == 64) {
+        out_byte(0x40 + reg2/8 + 4*(reg1/8) + (size == 64 ? 8 : 0));
+    }
+    out_byte(0x8B - (mr ? 2 : 0) - (size == 8));
+    uint8_t b;
+    if (offs == 0 && reg2 != REG_EBP) {
+        b = 0;
+    } else {
+        b = 0x40 +  (!is_byte(offs) ? 0x40 : 0);
+    }
+    out_byte(b + (reg1 % 8)*8 + reg2 % 8);
+    if (reg2 == REG_ESP) {
+        out_byte(0x24);
+    }
+    if (b != 0) {
+        out_int_or_byte(offs);
+    }
+}
+
+// mov dword [reg1 + offs], reg2
+void movmr(int reg1, int offs, int reg2) {
+    _movrm(reg2, reg1, offs, 32, true);
+}
+
+// mov reg1, dword [reg2 + offs]
+void movrm(int reg1, int offs, int reg2) {
+    _movrm(reg1, reg2, offs, 32, false);
+}
+
+
 void run_tests() {
     TEST(mov(REG_EAX, REG_EBX), outbuf, outbuf_len, ((uint8_t[]){ 0x89, 0xD8 }));
     TEST(mov(REG_ESI, REG_ECX), outbuf, outbuf_len, ((uint8_t[]){ 0x89, 0xCE }));
@@ -233,7 +270,11 @@ void run_tests() {
     TEST(xorrc(REG_EDX, 1337), outbuf, outbuf_len, ((uint8_t[]){ 0x81, 0xF2, 0x39, 0x05, 0x00, 0x00 }));
     TEST(addrc(REG_EDI, 0xBEEFC01A), outbuf, outbuf_len, ((uint8_t[]){ 0x81, 0xC7, 0x1A, 0xC0, 0xEF, 0xBE }));
     TEST(subrc(REG_EBX, 1337), outbuf, outbuf_len, ((uint8_t[]){ 0x81, 0xEB, 0x39, 0x05, 0x00, 0x00 }));
-
+    TEST(movmr(REG_EBX, 4, REG_ECX), outbuf, outbuf_len, ((uint8_t[]){ 0x89, 0x4B, 0x04 }));
+    TEST(movmr(REG_EAX, 3, REG_ESP), outbuf, outbuf_len, ((uint8_t[]){ 0x89, 0x60, 0x03 }));
+    TEST(movrm(REG_EDX, 7, REG_EBP), outbuf, outbuf_len, ((uint8_t[]){ 0x8B, 0x55, 0x07 }));
+    TEST(movrm(REG_EAX, 32, REG_ESP), outbuf, outbuf_len, ((uint8_t[]){ 0x8B, 0x44, 0x24, 0x20 }));
+    
     // TEST(   , outbuf, outbuf_len, ((uint8_t[]){   }));
     
 
